@@ -1,3 +1,9 @@
+const port = process.env.PORT || 8080;
+app.get('/', (req, res) => res.send('Bot is Alive!'));
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running on port ${port}`);
+});
+
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
