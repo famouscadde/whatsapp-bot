@@ -17,12 +17,15 @@ app.listen(port, () => console.log(`Server running on port ${port}`));
 // 2. BOT CLIENT SETUP
 const client = new Client({
     authStrategy: new LocalAuth(),
-    puppeteer: {
+puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-        executablePath: '/usr/bin/google-chrome-stable' // For Render Linux
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage'
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
     }
-});
 
 // 3. QR CODE GENERATOR
 client.on('qr', (qr) => {
