@@ -1,81 +1,62 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const express = require('express');
+const app = express();
 
+// 1. WEB SERVER (Keeps Render/Cloud alive)
+const port = process.env.PORT || 8080;
+app.get('/', (req, res) => res.send('Bot is Running 24/7!'));
+app.listen(port, () => console.log(`Server running on port ${port}`));
+
+// 2. BOT CLIENT SETUP
 const client = new Client({
     authStrategy: new LocalAuth(),
-   puppeteer: {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-extensions'
-            ],
-            executablePath: '/usr/bin/google-chrome-stable'
-        }
+    puppeteer: {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        executablePath: '/usr/bin/google-chrome-stable' // For Render Linux
+    }
+});
 
-// --- EVENT LISTENERS ---
-
+// 3. QR CODE GENERATOR
 client.on('qr', (qr) => {
-    console.log('SCAN THIS QR CODE WITH WHATSAPP:');
+    console.log('--- SCAN THE QR CODE BELOW ---');
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-    console.log('✅ Bot is online and ready!');
+    console.log('✅ Success! Bot is online and ready!');
 });
 
+// 4. COMMAND LOGIC
 client.on('message', async (message) => {
     const msg = message.body.trim().toLowerCase();
 
-    // 1. PING
+    // Command: .ping
     if (msg === '.ping') {
-        await message.reply('pong 🏓');
+        message.reply('pong! 🏓');
     }
 
-    // 2. OWNER
-    if (msg === '.owner') {
-        await message.reply('Owner: Hamza');
+    // Command: .sticker
+    if (msg === '.sticker' && message.hasMedia) {
+        const media = await message.downloadMedia();
+        message.reply(media, null, { sendMediaAsSticker: true });
     }
 
-    // 3. HELP (Formatted as a list)
-    if (msg === '.help') {
-        const helpMenu = [
-            "*Available Commands:*",
-            "• .sticker",
-            "• .ping",
-            "• .owner",
-            "• .help"
-        ].join('\n');
-        
-        await message.reply(helpMenu);
-    }
-
-    // 4. STICKER (No Watermark/Author + 3-Second Trim)
-    if (msg === '.sticker') {
-        if (message.hasMedia) {
-            try {
-                console.log('Processing sticker...');
-                const media = await message.downloadMedia();
-
-                await client.sendMessage(message.from, media, {
-                    sendMediaAsSticker: true,
-                    // Removing author/name removes the "watermark" metadata
-                    ffmpegArgs: [
-                        '-t', '00:00:03', 
-                        '-vf', 'scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000',
-                        '-preset', 'ultrafast',
-                        '-loop', '0'
-                    ]
-                });
-                console.log('✅ Sticker sent!');
-            } catch (err) {
-                console.error("Sticker Error:", err);
-                await message.reply("Failed to create sticker. Check if the file is compatible.");
-            }
-        } else {
-            await message.reply("Please reply to a video/image with .sticker");
+    // Command: .mp3 (Video to Audio)
+    if (msg === '.mp3' && message.hasMedia) {
+        const media = await message.downloadMedia();
+        if (!media.mimetype.includes('video')) {
+            return message.reply("❌ Please send me a VIDEO to convert!");
         }
+        
+        await message.reply("⏳ Genius at work... converting to MP3 (Max 20s)");
+        
+        await client.sendMessage(message.from, media, {
+            sendMediaAsDocument: true,
+            fileName: 'audio.mp3',
+            ffmpegArgs: ['-t', '00:00:20', '-vn', '-acodec', 'libmp3lame']
+        });
     }
 });
 
